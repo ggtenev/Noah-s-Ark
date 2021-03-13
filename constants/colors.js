@@ -1,3 +1,4 @@
 export default {
-  button:'#ea653c'
+  button:'#ea653c',
+  lessBlack:'#19191B'
 }

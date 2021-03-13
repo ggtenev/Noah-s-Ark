@@ -3,10 +3,15 @@ import {
   View,
   Text,
   StyleSheet,
+  Pressable,
   StatusBar,
   TouchableOpacity,
+  Image,
   ActivityIndicator,
+  Modal,
+  
   PanResponder,
+  Platform,
   Animated,
   ScrollView,
 } from "react-native";
@@ -16,7 +21,10 @@ import { FontAwesome, Octicons } from "@expo/vector-icons";
 import { Video } from "expo-av";
 import { AntDesign, Ionicons } from "@expo/vector-icons";
 import Colors from "./constants/colors";
+import * as WebBrowser from 'expo-web-browser';
 import { MaterialCommunityIcons } from "@expo/vector-icons";
+import * as ScreenOrientation from "expo-screen-orientation";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import v1 from "./videos/1.mp4";
 import v30 from "./videos/30.mp4";
@@ -124,6 +132,8 @@ const loadFonts = () =>
     Renner: require("./assets/GaramondPremrPro.otf"),
   });
 
+  const LINK = Platform.OS == 'ios' ?  "https://apps.apple.com/ru/app/noahs-ark-without-the-roof/id1551577646" : 'https://google.com'
+
 export default function One() {
   const [fontsLoaded, setFontsLoaded] = useState(false);
   const [screen, setScreen] = useState(0);
@@ -131,19 +141,63 @@ export default function One() {
   const pan = useRef(new Animated.ValueXY()).current;
   const [textAnim, setTextAnim] = useState(new Animated.Value(300));
   const [muted, setMuted] = useState(false);
+  const [orientation, setOrientation] = useState("");
+  const [ranked, setRanked] = useState(false);
+  const [modal, setModal] = useState(false);
 
   useEffect(() => {
-    if (screen == 0) {
-      console.log()
-      setTimeout(() => {
-        setScreen(1);
-      }, 7000);
+    const getData = async () => {
+      try {
+        const value = await AsyncStorage.getItem("@storage_kur");
+        if (value !== null) {
+          // value previously stored
+          setRanked(true);
+        }
+      } catch (e) {
+        console.log(e);
+      }
+    };
+
+    getData();
+
+    async function getOrientation() {
+      ScreenOrientation.getOrientationAsync((e) => {
+        console.log("event ", e.orientationInfo.orientation);
+        setOrientation(e.orientationInfo.orientation);
+      });
+      // console.log('rjdjdjd', current)
     }
+
+    getOrientation()
+    
+
+    async function changeScreenOrientation() {
+      ScreenOrientation.addOrientationChangeListener((e) => {
+        console.log("event ", e.orientationInfo.orientation);
+        setOrientation(e.orientationInfo.orientation);
+      });
+      // console.log('rjdjdjd', current)
+    }
+    changeScreenOrientation();
+  }, []);
+
+  useEffect(() => {
+    // if (screen == 0) {
+    //   console.log();
+    //   setTimeout(() => {
+    //     setScreen(1);
+    //   }, 7000);
+    // }
     if (screen == 29) {
       console.log();
       setTimeout(() => {
         setScreen(0);
       }, 19000);
+    }
+    if (screen == 29 && !ranked) {
+      setTimeout(() => {
+        setModal(true);
+      }, 10000);
     }
 
     if (screen == 1) {
@@ -154,7 +208,7 @@ export default function One() {
     if (screen == 2) {
       setTimeout(() => {
         // console.log("3");
-        
+
         Animated.timing(textAnim, {
           toValue: 450,
           duration: 0,
@@ -163,12 +217,11 @@ export default function One() {
           Animated.timing(textAnim, {
             toValue: 0,
             duration: 500,
-            useNativeDriver: true, 
+            useNativeDriver: true,
           }).start();
         });
         setScreen(3);
-        
-      }, 15000);
+      }, 14500);
     }
   }, [screen]);
 
@@ -205,7 +258,7 @@ export default function One() {
             duration: 500,
             useNativeDriver: true,
           }).start();
-        }); 
+        });
       }
       if (pan.x._value > 40) {
         setScreen((s) => s - 1);
@@ -240,7 +293,10 @@ export default function One() {
       <View
         style={{
           flex: 1,
-          backgroundColor: "black",
+          backgroundColor:
+            screen === 1 || screen === 2 || screen === 29
+              ? "black"
+              : Colors.lessBlack,
         }} /* {...panResponder.panHandlers}*/
       >
         <ScrollView>
@@ -251,105 +307,208 @@ export default function One() {
               color='white'
             />s
           </View> */}
-          <View style={{alignItems:'flex-end',marginTop:15,marginRight:10}}>
-          {muted ? (
-            <TouchableOpacity onPress={() => setMuted(false) }>
-              <Octicons name='unmute' size={32} color='white' />
-            </TouchableOpacity>
-          ) : (
-            <TouchableOpacity onPress={() => setMuted(true) }>
-                <Octicons name='mute' size={32} color='white' />
-            </TouchableOpacity>
-          )}
+
+          <View
+            style={{
+              flexDirection: orientation == 1 ? "column" : "row",
+              justifyContent: "center",
+              width: "100%",
+              marginBottom: 10,
+            }}
+          >
+            <Video
+              source={VV[screen]}
+              rate={1.0}
+              volume={1.0}
+              isMuted={muted}
+              resizeMode='contain'
+              shouldPlay
+              isBuffering={true}
+              isLooping
+              style={{ width: "100%", height: 300, marginTop: 10 }}
+            />
+      
+            <Modal
+            
+              animationType='fade'
+              transparent={true}
+              visible={modal}
+              onRequestClose={() => {
+          
+                setModal(!modal);
+              }}
+            >
+              <View style={styles.centeredView}>
+                <View style={styles.modalView}>
+                  <Image style={{height:77,width:77}} source={require('./assets/ark.png')}/>
+                  <Text style={styles.modalText}>Did you enjoy the story?</Text>
+                  <Pressable
+                   style={{marginVertical:10}}
+                    onPress={ async() => {
+                      setModal(!modal)
+                      setRanked(true)
+                      try {
+                        await AsyncStorage.setItem('@storage_kur', 'stored')
+                      } catch (e) {
+                  
+                      }
+                      WebBrowser.openBrowserAsync(LINK)
+                    }}
+                  >
+                    <Text style={{color:'blue',fontSize:18}}>Write a review</Text>
+                  </Pressable>
+                  <Pressable
+                    style={{marginVertical:10}}
+                    onPress={() => setModal(!modal)}
+                  >
+                    <Text style={{color:'red',fontSize:18}}>Not now</Text>
+                  </Pressable>
+                </View>
+              </View>
+            </Modal>
+            {screen === 0 ||
+            screen === 1 ||
+            screen === 2 ||
+            screen === 29 ? null : (
+              <View
+                style={{
+                  alignItems: "flex-end",
+                  marginVertical: 15,
+                  marginRight: 10,
+                  // marginTop:20,
+                  flex: 1,
+                  // bottom:-20,
+                  position: orientation == 1 ? "relative" : "absolute",
+                  bottom: orientation == 1 ? 22 : -10,
+                  right: orientation === 1 ? 15 : 5
+                  
+                }}
+              >
+                {muted ? (
+                  <TouchableOpacity  onPress={() => setMuted(false)}>
+                    <Octicons name='unmute' size={32} color='white' />
+                  </TouchableOpacity>
+                ) : (
+                  <TouchableOpacity  onPress={() => setMuted(true)}>
+                    <Octicons name='mute' size={32} color='white' />
+                  </TouchableOpacity>
+                )}
+              </View>
+            )}
           </View>
-        
-          <Video
-            source={VV[screen]}
-            rate={1.0}
-            volume={1.0}
-            isMuted={muted}
-            resizeMode='contain'
-            shouldPlay 
-            isBuffering={true}
-            isLooping
-            style={{ width: "100%", height: 300 }}
-          />
+          {screen == 0 ? (
+            <TouchableOpacity
+              onPress={() => setScreen(screen + 1)}
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                justifyContent: "flex-end",
+                marginRight: 17,
+              }}
+            >
+              <Text
+                style={{
+                  color: "white",
+                  fontSize: 24,
+                  marginHorizontal: 10,
+                  position: "relative",
+                  bottom: 4,
+                }}
+              >
+                <Text
+                  style={{
+                    fontSize: 30,
+                    fontWeight: "bold",
+                    fontFamily: "Renner",
+                  }}
+                >
+                  C
+                </Text>
+                ontinue
+              </Text>
+              <FontAwesome name='forward' size={20} color='white' />
+            </TouchableOpacity>
+          ) : null}
+
           {/* <Animated.Text style={{color:'white',fontWeight:'normal'}}>egshsgsegse</Animated.Text> */}
-
-          {screen == 3 ? (
-            <Animated.Text
-              style={[
-                {
-                  color: "white",
-                  fontSize: 22,
-                  textAlign: "justify",
-                  fontFamily: "Renner",
-                  // fontWeight:'bold'
-                }, 
-                {
-                  transform: [
-                    {
-                      translateX: textAnim,
-                    }, 
-                  ],
-                },
-              ]}
-            >
+          <View style={{ paddingHorizontal: 14 }}>
+            {screen != 377 ? (
               <Animated.Text
-                style={{
-                  fontWeight: "bold",
-                  fontSize: 32,
-                  textAlign: "justify",
-                  transform: [
-                    {
-                      translateX: textAnim,
-                    },
-                  ],
-                }}
+                style={[
+                  {
+                    color: "white",
+                    fontSize: 22,
+                    textAlign: "justify",
+                    fontFamily: "Renner",
+                    textAlign:'justify'
+                    // fontWeight:'bold'
+                  },
+                  {
+                    transform: [
+                      {
+                        translateX: textAnim,
+                      },
+                    ],
+                  },
+                ]}
               >
-                {TT[screen].split("")[0]} 
-                
+                <Animated.Text
+                  style={{
+                    fontWeight: "bold",
+                    fontSize: 32,
+                    textAlign: "justify",
+                    transform: [
+                      {
+                        translateX: textAnim,
+                      },
+                    ],
+                  }}
+                >
+                  {TT[screen].split("")[0]}
+                </Animated.Text>
+                {TT[screen].split("").splice(1).join("")}
               </Animated.Text>
-              {TT[screen].split("").splice(1).join("")}
-            </Animated.Text>
+            ) : (
+              <Animated.Text
+                style={[
+                  {
+                    color: "white",
+                    fontSize: 22,
+                    textAlign: "justify",
+                    fontFamily: "Renner",
+                  },
+                  {
+                    transform: [
+                      {
+                        translateX: textAnim,
+                      },
+                    ],
+                  },
+                ]}
+              >
+                <Animated.Text
+                  style={{
+                    fontWeight: "bold",
+                    textAlign: "justify",
+                    fontSize: 22,
+                    transform: [
+                      {
+                        translateX: textAnim,
+                      },
+                    ],
+                  }}
+                >
+                  {TT[screen].split(" ")[0]}{" "}
+                </Animated.Text>
+                {TT[screen].split(" ").splice(1).join(" ")}
+              </Animated.Text>
+            )}
+          </View>
+
+          {screen === 29 || screen == 2 ? null : screen == 0 ? null : screen ==
+            1 ? (
+            <View></View>
           ) : (
-            <Animated.Text
-              style={[
-                {
-                  color: "white",
-                  fontSize: 22,
-                  textAlign: "justify",
-                  fontFamily: "Renner",
-                },
-                {
-                  transform: [
-                    {
-                      translateX: textAnim,
-                    },
-                  ],
-                },
-              ]}
-            >
-              <Animated.Text
-                style={{
-                  fontWeight: "bold",
-                  textAlign: "justify",
-                  fontSize: 22,
-                  transform: [
-                    {
-                      translateX: textAnim,
-                    },
-                  ],
-                }}
-              >
-                {TT[screen].split(" ")[0]}{" "}
-              </Animated.Text>
-              {TT[screen].split(" ").splice(1).join(" ")}
-            </Animated.Text>
-          )}
-
-          {screen == 1 || screen === 29 || screen == 2 ? null : screen == 0 ? (
-            null
             // <View
             //   style={{
             //     flexDirection: "row",
@@ -377,33 +536,35 @@ export default function One() {
             //     <FontAwesome name='forward' size={34} color='white' />
             //   </TouchableOpacity>
             // </View>
-          ) : (
             <View
               style={{
                 flexDirection: "row",
                 justifyContent: "center",
-                marginTop: 20,
+                marginVertical: 20,
               }}
             >
-              <TouchableOpacity
-                onPress={() => {
-                  setScreen((s) => s - 1);
-                  Animated.timing(textAnim, {
-                    toValue: -450,
-                    duration: 0,
-                    useNativeDriver: true,
-                  }).start(() => {
+              {screen === 3 ? null : (
+                <TouchableOpacity
+                  onPress={() => {
+                    setScreen((s) => s - 1);
                     Animated.timing(textAnim, {
-                      toValue: 0,
-                      duration: 500,
+                      toValue: -450,
+                      duration: 0,
                       useNativeDriver: true,
-                    }).start();
-                  });
-                }}
-                style={{ marginHorizontal: 10 }}
-              >
-                <FontAwesome name='backward' size={34} color='white' />
-              </TouchableOpacity>
+                    }).start(() => {
+                      Animated.timing(textAnim, {
+                        toValue: 0,
+                        duration: 500,
+                        useNativeDriver: true,
+                      }).start();
+                    });
+                  }}
+                  style={{ marginHorizontal: 10 }}
+                >
+                  <FontAwesome name='backward' size={34} color='white' />
+                </TouchableOpacity>
+              )}
+
               <TouchableOpacity
                 onPress={() => {
                   setScreen((s) => s + 1);
@@ -438,5 +599,50 @@ const styles = StyleSheet.create({
     backgroundColor: "black",
     justifyContent: "center",
     alignItems: "center",
+  },
+  centeredView: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    marginTop: 222,
+  },
+  modalView: {
+    margin: 20,
+
+    backgroundColor: "white",
+    borderRadius: 20,
+    padding: 35,
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  buttonOpen: {
+    backgroundColor: "#F194FF",
+  },
+  buttonClose: {
+    backgroundColor: "#2196F3",
+  },
+  textStyle: {
+    color: "white",
+    fontWeight: "bold",
+    textAlign: "center",
+  },
+  modalText: {
+    marginBottom: 15,
+    textAlign: "center",
+    fontWeight: "bold",
+    fontSize: 18,
+    color:'black'
+  },
+  button: {
+    borderRadius: 20,
+    padding: 10,
+    elevation: 2,
   },
 });
